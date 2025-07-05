@@ -1,11 +1,22 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
+var excluded map[string]bool
+
 func main() {
+	var excludFiles string
+	flag.StringVar(&excludFiles, "x", "", "files to be excluded from view")
+	flag.Parse()
+
+	excluded = make(map[string]bool)
+	processExcludedFiles(excludFiles)
+
 	dir, _ := os.Getwd()
 	explorePath(dir, 0)
 }
@@ -14,11 +25,13 @@ func explorePath(path string, level int) {
 	entries, err := os.ReadDir(path)
 	entries = sortDir(entries)
 	if err != nil {
-		fmt.Println("error:", err)
 		return
 	}
 
 	for _, entry := range entries {
+		if excluded[entry.Name()] {
+			continue
+		}
 		decorator := ""
 		if entry.IsDir() {
 			decorator = "\\ "
@@ -35,12 +48,12 @@ func explorePath(path string, level int) {
 }
 
 func indentation(space int) string {
-	padding := ""
+	var sb strings.Builder
 	for range space {
-		padding += "|"
-		padding += "   "
+		sb.WriteString("|")
+		sb.WriteString("   ")
 	}
-	return padding
+	return sb.String()
 }
 
 func sortDir(entries []os.DirEntry) []os.DirEntry {
@@ -58,6 +71,17 @@ func sortDir(entries []os.DirEntry) []os.DirEntry {
 	}
 
 	return sortedDirEntry
+}
+
+func processExcludedFiles(excludeFiles string) {
+	// some hardcoded things
+	excluded[".git"] = true
+	excluded["node_modules"] = true
+
+	files := strings.Split(excludeFiles, ",")
+	for _, file := range files {
+		excluded[file] = true
+	}
 }
 
 // \ another_folder
